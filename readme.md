@@ -7,6 +7,7 @@ This is the x86-64 assembly version of my [other](https://github.com/insomnimus/
 It reads data from the stdin  or the clipboard and sends it to notepad.
 
 It will open a new notepad window if none is open; if one is open, it will focus to it and replace its buffer instead.
+> The new Win 11 notepad won't work with this; I don't use it so I didn't handle it. However all it needs is small adjustments (the edit window name is no longer simply "Edit".)
 
 ## Usage
 You can use this 2 ways.
