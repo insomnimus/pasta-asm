@@ -7,7 +7,10 @@ section ".idata" import data readable writeable ;{
 	library \
 		kernel32, "kernel32.dll",\
 		user32, "user32.dll",\
-		psapi, "psapi.dll"
+		psapi, "psapi.dll",\
+		msvcrt, "msvcrt.dll"
+
+	import msvcrt, wprintf, "wprintf_s"
 
 	include "api/kernel32.inc"
 	include "api/user32.inc"

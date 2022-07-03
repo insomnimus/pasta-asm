@@ -1,3 +1,17 @@
+;; unused - needs msvcrt.dll (wprintf -> wprintf_s)
+macro println fmt*, [arg] {
+	common
+	if ~ (fmt eqtype "")
+		display "error: first argument to println must be a string literal"
+		err
+	end if
+
+		local .fmt, .p
+		jmp .p
+		.fmt text fmt, 10, 0
+		.p: invoke wprintf, .fmt, arg
+}
+
 proc write_error uses rbx rsi rdi, str:PTR ;{
 	local out_str:PTR
 	local err_str:PTR
@@ -13,7 +27,7 @@ proc write_error uses rbx rsi rdi, str:PTR ;{
 
 	lea rdi, qword [out_str]
 	fastcall _wide_to_console, rsi, rdi
-	invoke WriteFile, rbx, qword [out_str], eax, nil, 0
+	invoke WriteFile, rbx, qword [rdi], eax, nil, 0
 
 	; Free allocated memory.
 	invoke HeapFree, <invoke GetProcessHeap>, 0, qword [err_str]
@@ -146,6 +160,7 @@ proc _wide_to_console uses rbx rsi rdi, str:PTR, out_str:PTR ;{
 		dword [out_len],\ ; output size
 	0, 0
 
+	mov eax, dword [out_len]
 	ret
 endp
 ;}

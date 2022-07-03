@@ -30,7 +30,7 @@ proc exit_with uses rbx rsi, msg:PTR, code:DWORD ;{
 	mov rsi, rcx
 	mov ebx, edx
 	fastcall write_error, rsi
-	fastcall ExitProcess, ebx
+	invoke ExitProcess, ebx
 	ret
 endp
 ;}
