@@ -30,7 +30,7 @@ define PTR QWORD
 define nil 0
 
 macro dbg_try command*& {
-	if defined debug and debug
+	if defined debug & debug
 		try command
 	else
 		command
