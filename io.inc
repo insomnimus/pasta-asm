@@ -4,14 +4,14 @@ ERROR_BROKEN_PIPE = 0x0000006D
 ;; fn _read_stdin_bytes(out_str: *str) -> length
 proc _read_stdin_bytes uses rbx rsi rdi r12, out_str:PTR ;{
 	local buf:PTR
-	local capacity:QWORD
-	local length:QWORD
-	local n_read:QWORD
+	local capacity:DWORD
+	local length:DWORD
+	local n_read:DWORD ; temporary, resets each iteration
 
 	mov qword [out_str], rcx
-	mov qword [capacity], initial_stdin_buf_len
-	mov qword [length], 0
-	lea rbx, qword [n_read] ; we'll store the address of n_read in rbx
+	mov dword [capacity], initial_stdin_buf_len
+	mov dword [length], 0
+	lea rbx, [n_read] ; we'll store the address of n_read in rbx
 
 	; allocate heap
 	try invoke HeapAlloc, <invoke GetProcessHeap>, HEAP_ZERO_MEMORY, initial_stdin_buf_len
@@ -21,24 +21,25 @@ proc _read_stdin_bytes uses rbx rsi rdi r12, out_str:PTR ;{
 	mov rsi, rax ; stdin handle
 
 	.loop:
-		mov r12, qword [capacity]
-		sub r12, qword [length]
-		jif r12, be, 1, .realloc ; reallocate if remaining capacity <= 1
-		dec r12 ; do not let it write to the last null byte
+		mov r12d, dword [capacity]
+		sub r12d, dword [length]
+		jif r12d, be, 1, .realloc ; reallocate if remaining capacity <= 1
+		dec r12d ; do not let it write to the last null byte
 
 		invoke ReadFile,\
 			rsi,\ ; stdin handle
 			rdi,\ ; write pointer
-			r12,\ ; number of bytes to read
+			r12d,\ ; number of bytes to read
 			rbx,\ ; out number of bytes read
 			nil ; lpOverlapped
 
 		; check return code
-		jif rax, e, FALSE, .handle_err
+		jif eax, e, FALSE, .handle_err
 
 		; increment length and continue the loop
-		mov rax, qword [rbx]
-		add qword [length], rax
+		mov eax, dword [n_read]
+		add dword [length], eax
+
 		add rdi, rax ; write-pointer
 		jmp .loop
 
@@ -50,11 +51,13 @@ proc _read_stdin_bytes uses rbx rsi rdi r12, out_str:PTR ;{
 		ret
 
 	.realloc:
-		sal qword [capacity], 1 ; double cap
-		try invoke HeapReAlloc, <invoke GetProcessHeap>, HEAP_ZERO_MEMORY, qword [buf], qword [capacity]
+		sal dword [capacity], 1 ; double cap
+		try invoke HeapReAlloc, <invoke GetProcessHeap>, HEAP_ZERO_MEMORY, qword [buf], dword [capacity]
 
 		mov qword [buf], rax ; write the new buffer pointer
-		add rax, qword [length]
+		xor r15, r15
+		mov r15d, dword [length]
+		add rax, r15
 		mov rdi, rax
 		jmp .loop ; continue loop
 
@@ -63,7 +66,7 @@ proc _read_stdin_bytes uses rbx rsi rdi r12, out_str:PTR ;{
 		mov rax, qword [out_str]
 		mov rbx, qword [buf]
 		mov qword [rax], rbx
-		mov rax, qword [length]
+		mov eax, dword [length]
 
 		ret
 endp

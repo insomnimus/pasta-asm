@@ -125,7 +125,7 @@ proc str_ends_with uses rbx rsi rdi, str:PTR, suffix:PTR ;{
 endp
 ;}
 
-proc _wide_to_console uses rbx rsi rdi, str:PTR, out_str:PTR ;{
+proc _wide_to_console_old uses rbx rsi rdi, str:PTR, out_str:PTR ;{
 	local input_len:QWORD
 	local out_len:DWORD
 
@@ -136,6 +136,52 @@ proc _wide_to_console uses rbx rsi rdi, str:PTR, out_str:PTR ;{
 
 	invoke GetConsoleOutputCP
 	mov rbx, rax
+
+	invoke WideCharToMultiByte,\
+		ebx,\ ; the code page
+		0,\ ; flags
+		rsi,\ ; input
+		dword [input_len],\ ; length
+		nil,\ ; output
+		0,\ ; output size
+	0, 0
+
+	; Allocate enough heap to hold the string.
+	mov dword [out_len], eax
+	invoke HeapAlloc, <invoke GetProcessHeap>, HEAP_ZERO_MEMORY, eax
+	mov qword [rdi], rax ; Store allocation.
+
+		invoke WideCharToMultiByte,\
+		ebx,\ ; the code page
+		0,\ ; flags
+		rsi,\ ; input
+		dword [input_len],\ ; length
+		qword [rdi],\ ; output
+		dword [out_len],\ ; output size
+	0, 0
+
+	mov eax, dword [out_len]
+	ret
+endp
+;}
+
+proc _wide_to_console uses rsi rdi, str:PTR, out_str:PTR ;{
+	mov rsi, rcx
+	mov rdi, rdx
+	fastcall wide_to_other, rsi, rdi, <invoke GetConsoleCP>
+	ret
+endp
+;}
+
+proc wide_to_other uses rbx rsi rdi, str:PTR, out_str:PTR, cp:DWORD ;{
+	local input_len:QWORD
+	local out_len:DWORD
+
+	mov rsi, rcx
+	mov rdi, rdx
+	mov ebx, r8d
+	fastcall strlen, rsi
+	mov qword [input_len], rax
 
 	invoke WideCharToMultiByte,\
 		ebx,\ ; the code page

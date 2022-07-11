@@ -1,2 +1,5 @@
 _*
 *.exe
+target/
+*.o
+*.obj

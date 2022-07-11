@@ -1,0 +1,11 @@
+[package]
+name = "ini"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+clap = "3.2.8"
+configparser = "3.0.0"

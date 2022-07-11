@@ -1,22 +1,23 @@
-format MS64 COFF
+format PE64 console
+entry start
 
 include "win64wxp.inc"
 
-UTF16 = 1200
+section ".idata" import data readable writeable ;{
+	library \
+		kernel32, "kernel32.dll",\
+		user32, "user32.dll",\
+		psapi, "psapi.dll",\
+		msvcrt, "msvcrt.dll"
 
-macro externs [ext] {
-	yes = 0
-	match name \as ident, ext \{
-	extrn \`name as ident:QWORD
-	yes = 1
-	\}
+	import msvcrt, wprintf, "wprintf_s"
 
-	if ~ yes
-		extrn ext:QWORD
-	end if
-	yes = 0
-}
-invoke fix fastcall
+	include "api/kernel32.inc"
+	include "api/user32.inc"
+
+	import psapi,\
+		GetModuleFileNameExW, "GetModuleFileNameExW"
+;}
 
 debug = 1
 match =release, config {
@@ -42,17 +43,7 @@ macro jif op1*, cond*, op2*, location* {
 }
 
 section ".bss" data readable writeable ;{
-		struct Editor ;{
-		path dq 0
-		basename dq 0
-		edit dq 0
-		no_reuse dd 0 ; actually just a byte but we have to pad
-		cp dd ?
-	ends
-	;}
-
-; config Editor 0, 0, 0, 0, 0
-config Editor
+	N_COMMAND text "notepad.exe", 0
 	N_STARTUP_INFO STARTUPINFO \
 		sizeof.STARTUPINFO,\ ; cb
 		0,\ ; lpReserved
@@ -75,40 +66,9 @@ config Editor
 ;}
 
 section ".text" code readable executable ;{
-	public main
-
 	include "str.inc"
 	include "sys.inc"
 	include "io.inc"
-
-	;; ini externs
-	externs free_editor, get_editor_config
-
-	;; windows dependencies
-	externs \ ;{
-		_CRT_INIT,\
-		GetConsoleCP,\
-		CloseHandle,\
-		GetLastError,\
-		SendMessageW,\
-		FormatMessageW,\
-		ReadFile, WriteFile,\
-		GetFileType,\
-		FindWindowExW, EnumWindows, GetWindowThreadProcessId, IsWindowVisible, GetWindow, GetTopWindow, SetForegroundWindow,\
-		OpenClipboard, CloseClipboard, GetClipboardData, IsClipboardFormatAvailable,\
-		GetModuleFileNameExW,\
-		GetConsoleOutputCP,\
-		WaitForInputIdle,\
-		HeapAlloc, HeapReAlloc, GetProcessHeap, HeapFree,\
-		LocalFree,\
-		OpenProcess, ExitProcess,\
-		CreateProcessW,\
-		GetStdHandle,\
-		wprintf_s as wprintf,\
-		WideCharToMultiByte,\
-		MultiByteToWideChar,\
-		Sleep
-	;}
 
 	struct HwndAndPid ;{
 		pid dq ? ; actually dword
@@ -129,7 +89,7 @@ section ".text" code readable executable ;{
 	endp
 	;}
 
-	proc find_editor uses rbx rsi rdi, out_hwnd:PTR , out_handle:PTR ;{
+	proc find_notepad uses rbx rsi rdi, out_hwnd:PTR , out_handle:PTR ;{
 	local pid:DWORD
 		mov [out_hwnd], rcx
 		mov [out_handle], rdx
@@ -154,15 +114,15 @@ section ".text" code readable executable ;{
 				PROCESS_QUERY_INFORMATION or PROCESS_VM_READ,\
 				0, eax
 
-			jif rax, e, FALSE, .continue
+			jif rax, e, 0, .continue
 			mov rsi, rax
 			invoke GetModuleFileNameExW, rax, nil, rdi, 512
-			jif eax, e, FALSE, .continue
+			jif eax, e, 0, .continue
 
 			fastcall str_make_lower, rdi ; make it lowercase
-			fastcall str_ends_with, rdi, qword [config.basename]
-			jif eax, e, FALSE, .continue
-			; it is the editor
+			fastcall str_ends_with, rdi, "notepad.exe"
+			jif eax, e, 0, .continue
+			; it is notepad
 			mov rax, [out_hwnd]
 			mov qword [rax], rbx
 			mov rax, [out_handle]
@@ -187,7 +147,7 @@ section ".text" code readable executable ;{
 	endp
 	;}
 
-	proc spawn_editor uses rbx rdi, out_hwnd:PTR , out_handle:PTR ;{
+	proc spawn_notepad uses rbx rdi, out_hwnd:PTR , out_handle:PTR ;{
 		local proc_info:PROCESS_INFORMATION
 		mov [out_hwnd], rcx
 		mov [out_handle], rdx
@@ -195,7 +155,7 @@ section ".text" code readable executable ;{
 		lea rdi, qword [proc_info]
 		try invoke CreateProcessW,\
 			nil,\ ; module name
-			qword [config.path],\ ; the command line
+			N_COMMAND,\ ; the command line
 			nil,\ ; process attributes
 			nil,\ ; thread attributes
 			FALSE,\ ; don't inherit handles
@@ -208,9 +168,8 @@ section ".text" code readable executable ;{
 		mov rax, qword [proc_info.hProcess]
 		mov rbx, qword [out_handle]
 		mov qword [rbx], rax
-		; wait for the window
+		; wait for notepad window
 		invoke WaitForInputIdle, rax, 2000
-		; invoke Sleep, 1000
 
 		xor rax, rax
 		mov ebx, dword [proc_info.dwProcessId]
@@ -249,9 +208,6 @@ section ".text" code readable executable ;{
 		mov rax, qword [lparam] ; load address
 		mov rax, qword [rax] ; load the pid
 		jif eax, ne, dword [out], .not_it
-		; It's the pid we're looking for but the window needs to be visible.
-		invoke IsWindowVisible, qword [hwnd]
-		jif eax, e, FALSE, .not_it
 		; found it, set target hwnd
 		mov rax, qword [hwnd]
 		mov rdi, qword [lparam]
@@ -265,14 +221,13 @@ section ".text" code readable executable ;{
 	endp
 	;}
 
-	proc get_editor out_hwnd:PTR , out_handle:PTR ;{
+	proc get_notepad out_hwnd:PTR , out_handle:PTR ;{
 		mov qword [out_hwnd], rcx
 		mov qword [out_handle], rdx
 
-		jif dword [config.no_reuse], ne, FALSE, .spawn
-		fastcall find_editor, qword [out_hwnd], qword [out_handle]
+		fastcall find_notepad, qword [out_hwnd], qword [out_handle]
 		jif rax, ne, FALSE, .return
-		.spawn: fastcall spawn_editor, qword [out_hwnd], qword [out_handle]
+		fastcall spawn_notepad, qword [out_hwnd], qword [out_handle]
 		.return: ret
 	endp
 	;}
@@ -281,7 +236,7 @@ section ".text" code readable executable ;{
 		mov rbx, rcx
 		mov rsi, rdx
 
-		invoke FindWindowExW, rbx, 0, qword [config.edit], nil
+		invoke FindWindowExW, rbx, 0, "Edit", nil
 		jif rax, e, 0, .not_found
 		invoke SendMessageW, rax, WM_SETTEXT, 0, rsi
 		mov rax, TRUE
@@ -294,9 +249,7 @@ section ".text" code readable executable ;{
 	;}
 
 	;; Returns TRUE if the data came from stdin.
-	proc get_text_data uses rsi rdi, out_str:PTR ;{
-		local tmp_str:PTR
-
+	proc get_text_data uses rdi, out_str:PTR ;{
 		mov rdi, rcx
 
 		fastcall is_stdin_tty
@@ -304,14 +257,12 @@ section ".text" code readable executable ;{
 
 		fastcall get_clip_data
 		jif rax, e, nil, .err_no_clip
-		fastcall encode_data, rax, rdi, FALSE
+		mov qword [rdi], rax
 		mov rax, FALSE
 		ret
 
 	.read_stdin:
-		lea rsi, qword [tmp_str]
-		fastcall read_stdin, rsi
-		fastcall encode_data, qword [rsi], rdi, TRUE
+		fastcall read_stdin, rdi
 		mov rax, TRUE
 		ret
 
@@ -321,29 +272,8 @@ section ".text" code readable executable ;{
 	endp
 	;}
 
-	proc encode_data uses rbx rsi rdi, in_str:PTR, out_str:PTR, free_old:BYTE ;{
-		mov rsi, rcx
-		mov rdi, rdx
-		mov bl, r8b
-
-		jif dword [config.cp], e, UTF16, .same_encoding
-
-		fastcall wide_to_other, rsi, rdi, dword [config.cp]
-		jif bl, e, FALSE, .return
-		try invoke HeapFree, <invoke GetProcessHeap>, 0, rsi
-		ret
-	.free_data:
-		try invoke HeapFree, <invoke GetProcessHeap>, 0, rsi
-		ret
-	.same_encoding:
-		mov qword [rdi], rsi
-	.return: ret
-	endp
-	;}
-
-	main: ;{
+	start: ;{
 	sub rsp, 8
-	invoke _CRT_INIT
 		fastcall start_fn
 		invoke ExitProcess, eax
 		add rsp, 8
@@ -359,22 +289,21 @@ section ".text" code readable executable ;{
 
 		mov dword [exit_code], 0
 
-		invoke get_editor_config, config
 		; First get the text.
 		lea rdi, qword [data]
 		fastcall get_text_data, rdi
 		mov byte [is_piped], al
 
-		; Get the editor window.
+		; Get the notepad window.
 		lea rsi, [n_hwnd]
 		lea rdi, [n_handle]
-		fastcall get_editor, rsi, rdi
+		fastcall get_notepad, rsi, rdi
 
 		; may not be necessary but doesn't hurt
 		invoke WaitForInputIdle, qword [rdi], 2000
 		try invoke SetForegroundWindow, qword [rsi]
 
-		; Now send the text to the config.
+		; Now send the text to notepad.
 		fastcall send_text, qword [n_hwnd], qword [data]
 		jif al, ne, FALSE, .return
 		fastcall write_error, "could not locate the edit window"
@@ -391,7 +320,6 @@ section ".text" code readable executable ;{
 		jmp .exit
 
 	..free_data:
-		try invoke free_editor, config
 		try invoke HeapFree, <invoke GetProcessHeap>, 0, qword [data]
 
 	.exit:
