@@ -3,7 +3,7 @@
 
 This is the x86-64 assembly version of my [other](https://github.com/insomnimus/pasta) project.
 
-> I've decided to improve the program and couldn't bother adding some of the new features in assembly (config file and cli args parsing) so the later additions add rust to the mix; you can however still compile the pure assembly version with `fasm pasta_basic.asm`.
+> I've decided to improve the program and couldn't bother adding some of the new features in assembly (all the interesting bits are in still assembly, the rust code only adds config file and cli args parsing) so the later additions add rust to the mix; you can however still compile the pure assembly version with `fasm pasta_basic.asm`.
 
 ## What Does It Do?
 It reads data from the stdin  or the clipboard and sends it to an editor (by default, Notepad.)
@@ -20,7 +20,7 @@ cat readme.md | pasta
 pasta
 ```
 
-If you've built the improved version, you can also specify a different editor in the config fikle.
+If you've built the improved version, you can also specify a different editor in the config file.
 The file is named the same as the executable but with a `.ini` extension instead (put it next to it!)
 
 ```
