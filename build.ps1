@@ -18,7 +18,7 @@ if you don't want to install clang, you can compile the initial and feature-poor
 
 push-location $PSScriptRoot
 
-$libraries = "kernel32", "user32", "psapi", "legacy_stdio_definitions", "bcrypt", "advapi32"
+$libraries = "kernel32", "user32", "psapi", "bcrypt", "advapi32" # "legacy_stdio_definitions"
 
 fasm pasta.asm pasta.obj -d config=release
 

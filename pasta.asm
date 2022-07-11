@@ -84,9 +84,11 @@ section ".text" code readable executable ;{
 	;; ini externs
 	externs free_editor, get_editor_config
 
+	;; CRT dependencies (not necessary unless we want to debug with println)
+	; externs wprintf_s as wprintf, _CRT_INIT
+
 	;; windows dependencies
 	externs \ ;{
-		_CRT_INIT,\
 		GetConsoleCP,\
 		CloseHandle,\
 		GetLastError,\
@@ -104,10 +106,8 @@ section ".text" code readable executable ;{
 		OpenProcess, ExitProcess,\
 		CreateProcessW,\
 		GetStdHandle,\
-		wprintf_s as wprintf,\
 		WideCharToMultiByte,\
-		MultiByteToWideChar,\
-		Sleep
+		MultiByteToWideChar
 	;}
 
 	struct HwndAndPid ;{
@@ -210,7 +210,6 @@ section ".text" code readable executable ;{
 		mov qword [rbx], rax
 		; wait for the window
 		invoke WaitForInputIdle, rax, 2000
-		; invoke Sleep, 1000
 
 		xor rax, rax
 		mov ebx, dword [proc_info.dwProcessId]
@@ -343,7 +342,7 @@ section ".text" code readable executable ;{
 
 	main: ;{
 	sub rsp, 8
-	invoke _CRT_INIT
+	; invoke _CRT_INIT
 		fastcall start_fn
 		invoke ExitProcess, eax
 		add rsp, 8
