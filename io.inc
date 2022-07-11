@@ -2,7 +2,7 @@ initial_stdin_buf_len = 1024
 ERROR_BROKEN_PIPE = 0x0000006D
 
 ;; fn _read_stdin_bytes(out_str: *str) -> length
-proc _read_stdin_bytes uses rbx rsi rdi r12, out_str:PTR ;{
+proc _read_stdin_bytes uses rbx rsi rdi r12 r15, out_str:PTR ;{
 	local buf:PTR
 	local capacity:DWORD
 	local length:DWORD
