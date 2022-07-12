@@ -49,11 +49,10 @@ fasm pasta_basic.asm -d config=release
 > It compiles to exactly 6 KiB!
 
 ## How to Assemble (improved version)
-On top of flat-assembler, you'll need to have `rust`, `clang` and a version of Visual Studio (or Visual Studio Build Tools) installed.
-
-You can install `clang` with [scoop](https://github.com/ScoopInstaller/scoop):\
-`scoop install llvm`
+On top of flat-assembler, you'll need to have Rust and a version of Visual Studio (or Visual Studio Build Tools) installed.
 
 - Open `X64 Native Tools Powershell for VS<version>`.
 - Add flat-assembler's include directory to the `$INCLUDE` env variable; e.g `$env:INCLUDE += ";D:\programs\fasm\include"`
 - Run the build script in the root of this project: `./build.ps1`
+
+> You can change the linker used by the build script. E.g `./build.ps1 -linker lld-link`. Supported linkers are `clang`, `lld-link` and `link`. The default is `link` (comes with MSVC).
