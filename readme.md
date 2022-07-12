@@ -3,7 +3,7 @@
 
 This is the x86-64 assembly version of my [other](https://github.com/insomnimus/pasta) project.
 
-> I've decided to improve the program and couldn't bother adding some of the new features in assembly (all the interesting bits are in still assembly, the rust code only adds config file and cli args parsing) so the later additions add rust to the mix; you can however still compile the pure assembly version with `fasm pasta_basic.asm`.
+> I've decided to improve the program and couldn't bother adding some of the new features in assembly (all the interesting bits are still in assembly, the rust code only adds config file and cli args parsing) so the later additions add rust to the mix; you can however still compile the pure assembly version with `fasm pasta_basic.asm`.
 
 ## What Does It Do?
 It reads data from the stdin  or the clipboard and sends it to an editor (by default, Notepad.)
