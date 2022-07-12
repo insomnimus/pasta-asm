@@ -43,7 +43,7 @@ Make sure that the `$INCLUDE` environment variable contains the `fasm` include d
 Then, assemble it with:
 
 ```powershell
-fasm pasta_basic.asm -d config=release
+fasm pasta_basic.asm
 ```
 
 > It compiles to exactly 6 KiB!

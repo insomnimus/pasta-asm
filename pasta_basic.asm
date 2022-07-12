@@ -19,23 +19,9 @@ section ".idata" import data readable writeable ;{
 		GetModuleFileNameExW, "GetModuleFileNameExW"
 ;}
 
-debug = 1
-match =release, config {
-	display "info: building in release mode"
-	debug = 0
-}
-
 text fix du
 define PTR QWORD
 define nil 0
-
-macro dbg_try command*& {
-	if defined debug & debug
-		try command
-	else
-		command
-	end if
-}
 
 macro jif op1*, cond*, op2*, location* {
 	cmp op1, op2
@@ -316,7 +302,7 @@ section ".text" code readable executable ;{
 		; If stdin was piped, free the memory, else close clipboard.
 		mov al, byte [is_piped]
 		jif al, ne, FALSE, ..free_data
-		dbg_try invoke CloseClipboard ; This errors for some reason
+		invoke CloseClipboard ; This errors for some reason
 		jmp .exit
 
 	..free_data:

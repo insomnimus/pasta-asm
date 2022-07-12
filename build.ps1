@@ -14,14 +14,14 @@ if(-not (get-command -ea ignore fasm)) {
 if(-not (get-command -ea ignore cargo)) {
 	write-error "the ``cargo`` command is not found
 if you don't want to install rust, you can compile the initial and feature-poor version of pasta that only works with notepad by running:
-	``fasm pasta_basic.asm pasta.exe -d config=release``"
+	``fasm pasta_basic.asm pasta.exe``"
 	return
 }
 
 if(-not (get-command -ea ignore $linker)) {
 	write-error "could not locate the linker specified with the -linker option ($linker)
 if you don't want to use the newer version, you can compile the feature-poor but pure-assembly version with:
-	``fasm pasta_basic.asm pasta.exe -d config=release``"
+	``fasm pasta_basic.asm pasta.exe``"
 	return
 }
 
@@ -29,7 +29,7 @@ push-location $PSScriptRoot
 
 $libraries = "kernel32", "user32", "psapi", "bcrypt", "advapi32" # "legacy_stdio_definitions"
 
-fasm pasta.asm pasta.obj -d config=release
+fasm pasta.asm pasta.obj
 
 if($lastExitCode -ne 0) {
 	pop-location
