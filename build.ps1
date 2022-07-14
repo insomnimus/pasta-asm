@@ -38,20 +38,24 @@ if($lastExitCode -ne 0) {
 }
 
 write-host "building the rust components..."
-cargo build --release -q --manifest-path ./ini/Cargo.toml
+cargo build --release -q --manifest-path ./ini/Cargo.toml --target x86_64-pc-windows-msvc
 
 if($lastExitCode) {
 	write-host "note: is cargo up to date?"
-	push-location
+	pop-location
 	return
 }
 
+$ini = "./ini/target/x86_64-pc-windows-msvc/release/ini.lib"
 write-host "linking objects..."
 
 switch -wildcard ($linker) {
-	"clang" { clang -O3 pasta.obj ./ini/target/release/ini.lib -o pasta.exe ($libraries | % { "-l", "$_.lib" }); break }
+	"clang" {
+		clang -O3 pasta.obj $ini -o pasta.exe ($libraries | % { "-l", "$_.lib" })
+		break
+	}
 	"*link" {
-		&$linker pasta.obj ini/target/release/ini.lib msvcrt.lib ($libraries | % { "$_.lib" }) `
+		&$linker pasta.obj $ini msvcrt.lib ($libraries | % { "$_.lib" }) `
 			/out:pasta.exe /stack:4096 /subsystem:console "/version:$version" /debug:none /dynamicbase /highEntropyVA /largeAddressAware /NoLogo /ignore:4078
 		break
 	}
