@@ -4,6 +4,11 @@ include "win64wxp.inc"
 
 UTF16 = 1200
 
+invoke fix fastcall
+text fix du
+PTR fix QWORD
+define nil 0
+
 macro externs [ext] {
 	yes = 0
 	match name \as ident, ext \{
@@ -16,11 +21,6 @@ macro externs [ext] {
 	end if
 	yes = 0
 }
-
-invoke fix fastcall
-text fix du
-PTR fix QWORD
-define nil 0
 
 macro jif op1*, cond*, op2*, location* {
 	cmp op1, op2
@@ -92,8 +92,7 @@ section ".text" code readable executable ;{
 		OpenProcess, ExitProcess,\
 		CreateProcessW,\
 		GetStdHandle,\
-		WideCharToMultiByte,\
-		MultiByteToWideChar
+		WideCharToMultiByte, MultiByteToWideChar
 	;}
 
 	struct HwndAndPid ;{
