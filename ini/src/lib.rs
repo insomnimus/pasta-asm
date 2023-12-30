@@ -28,7 +28,7 @@ pub struct Editor {
 #[derive(Parser)]
 #[command(version)]
 struct Args {
-	/// Path to the past config file
+	/// Path to the pasta config file
 	#[arg(short, long)]
 	config: Option<PathBuf>,
 	/// A section name from the config file to use
