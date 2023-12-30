@@ -40,8 +40,7 @@ struct Args {
 }
 
 impl Editor {
-	fn new<P: AsRef<Path>>(path: P, edit: &str, cp: u32, no_reuse: bool) -> Result<Self, String> {
-		let path = path.as_ref();
+	fn new(path: &Path, edit: &str, cp: u32, no_reuse: bool) -> Result<Self, String> {
 		let basename = path
 			.file_name()
 			.ok_or_else(|| format!("path does not point to a file ({})", path.display()))?
@@ -124,7 +123,7 @@ fn parse_args() -> Result<Editor, String> {
 			.ok()
 			.and_then(|mut p| (p.set_extension("ini") && p.is_file()).then_some(p))
 	}) {
-		None => Editor::new("notepad.exe", "Edit", 1200, e.new)?,
+		None => Editor::new(Path::new("notepad.exe"), "Edit", 1200, e.new)?,
 		Some(p) => {
 			let mut ini = Ini::new();
 			let data =
@@ -156,7 +155,7 @@ fn parse_args() -> Result<Editor, String> {
 			};
 
 			Editor::new(
-				get("path")?,
+				get("path").map(Path::new)?,
 				get("edit")?,
 				get("cp")?.parse::<u32>().map_err(|_| {
 					format!("(config) the `cp` key must be an unsigned integer\n-- path: {p}")
