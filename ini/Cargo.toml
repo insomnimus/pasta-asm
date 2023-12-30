@@ -3,9 +3,12 @@ name = "ini"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+panic = "abort"
+
 [lib]
 crate-type = ["staticlib"]
 
 [dependencies]
-clap = "3.2.8"
-configparser = "3.0.0"
+clap = "4.4.12"
+configparser = "3.0.3"

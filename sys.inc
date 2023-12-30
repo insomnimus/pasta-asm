@@ -10,7 +10,7 @@ err_exit: ;{
 	lea rbx, qword [rbp - 8]
 
 	invoke FormatMessageW,\
-		FORMAT_MESSAGE_FROM_SYSTEM + FORMAT_MESSAGE_ALLOCATE_BUFFER,\
+		FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_ALLOCATE_BUFFER,\
 		0,\
 		<invoke GetLastError>,\
 		LANG_NEUTRAL,\
