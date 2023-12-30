@@ -16,7 +16,6 @@ use configparser::ini::Ini;
 
 type WinStr = *const u16;
 
-#[derive(Debug)]
 #[repr(C)]
 pub struct Editor {
 	path: WinStr,
