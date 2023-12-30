@@ -64,3 +64,6 @@ The build script has some flags relevant for customization:
 -`-rustflags`: A list of flags to pass to rustc. For example:
 	- `./build.ps1 -rustflags -Ctarget-cpu=native`
 	- `./build.ps1 -rustflags "-Copt-level=s", "-Ctarget-cpu=haswell"`
+
+## Config File Syntax
+Take a look at [pasta.ini](pasta.ini).
