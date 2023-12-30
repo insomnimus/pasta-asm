@@ -7,18 +7,16 @@ use std::{
 		Path,
 		PathBuf,
 	},
+	process,
 	ptr,
 };
 
-use clap::{
-	arg,
-	Command,
-};
+use clap::Parser;
 use configparser::ini::Ini;
 
-type WinStr = *mut u16;
-type ConstWinStr = *const u16;
+type WinStr = *const u16;
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct Editor {
 	path: WinStr,
@@ -28,18 +26,18 @@ pub struct Editor {
 	cp: u32,
 }
 
-#[link(name = "kernel32")]
-extern "system" {
-	fn WideCharToMultiByte(
-		codepage: u32,
-		dwFlags: u32,
-		lpWideCharStr: ConstWinStr,
-		cchWideChar: i32,
-		lpMultiByteStr: *mut u8,
-		cbMultiByte: i32,
-		lpDefaultChar: *const u8,
-		lpUsedDefaultChar: *mut i32,
-	) -> i32;
+#[derive(Parser)]
+#[command(version)]
+struct Args {
+	/// Path to the past config file
+	#[arg(short, long)]
+	config: Option<PathBuf>,
+	/// A section name from the config file to use
+	#[arg(short, long, default_value = "default")]
+	editor: String,
+	/// Do not reuse an existing window, always spawn a new editor
+	#[arg(short, long)]
+	new: bool,
 }
 
 impl Editor {
@@ -71,12 +69,26 @@ impl Editor {
 	}
 }
 
+#[link(name = "kernel32")]
+extern "system" {
+	fn GetProcessHeap() -> isize;
+	fn HeapFree(h_heap: isize, h_flags: i32, ptr: isize) -> i32;
+	fn WideCharToMultiByte(
+		codepage: u32,
+		dwFlags: u32,
+		lpWideCharStr: WinStr,
+		cchWideChar: i32,
+		lpMultiByteStr: *mut u8,
+		cbMultiByte: i32,
+		lpDefaultChar: *const u8,
+		lpUsedDefaultChar: *mut i32,
+	) -> i32;
+}
+
 impl Drop for Editor {
 	fn drop(&mut self) {
 		unsafe {
-			let _ = Box::from_raw(self.path);
-			let _ = Box::from_raw(self.basename);
-			let _ = Box::from_raw(self.edit);
+			free_editor(self as _);
 		}
 	}
 }
@@ -85,8 +97,17 @@ impl Drop for Editor {
 /// The memory needs to be allocated.
 #[no_mangle]
 pub unsafe extern "system" fn free_editor(e: *mut Editor) -> i32 {
-	let _ = ptr::read_unaligned(e);
-	1
+	let h = GetProcessHeap();
+	let free = |s: WinStr| HeapFree(h, 0, s as _);
+	let n = free((*e).path);
+	if n == 0 {
+		return n;
+	}
+	let n = free((*e).basename);
+	if n == 0 {
+		return n;
+	}
+	free((*e).edit)
 }
 
 fn to_win(s: &str) -> WinStr {
@@ -97,26 +118,14 @@ fn to_win(s: &str) -> WinStr {
 }
 
 fn parse_args() -> Result<Editor, String> {
-	let m = Command::new("pasta")
-		.about("Send text to an editor")
-		.version("0.2.0")
-		.args(&[
-			arg!(-c --config [config_file] "Path to a .ini file"),
-			arg!(-e --editor [editor_profile] "A section name to use from the config file")
-				.default_value("default"),
-			arg!(-n --new "Do not reuse an existing window"),
-		])
-		.get_matches();
+	let e = Args::parse();
 
-	let edit = match m
-		.get_one::<String>("config")
-		.map(PathBuf::from)
-		.or_else(|| {
-			env::current_exe()
-				.ok()
-				.and_then(|mut p| (p.set_extension("ini") && p.is_file()).then_some(p))
-		}) {
-		None => Editor::new("notepad.exe", "Edit", 1200, m.contains_id("new"))?,
+	let edit = match e.config.or_else(|| {
+		env::current_exe()
+			.ok()
+			.and_then(|mut p| (p.set_extension("ini") && p.is_file()).then_some(p))
+	}) {
+		None => Editor::new("notepad.exe", "Edit", 1200, e.new)?,
 		Some(p) => {
 			let mut ini = Ini::new();
 			let data =
@@ -133,11 +142,11 @@ fn parse_args() -> Result<Editor, String> {
 					])
 				});
 			}
-			let key = m.get_one::<String>("editor").unwrap();
+			let key = e.editor;
 			let p = p.display();
 
 			let map = ini.get_map_ref();
-			let map = map.get(key).ok_or_else(|| {
+			let map = map.get(&key).ok_or_else(|| {
 				format!("(config) no editor section named {key} found\n-- path: {p}")
 			})?;
 
@@ -153,7 +162,7 @@ fn parse_args() -> Result<Editor, String> {
 				get("cp")?.parse::<u32>().map_err(|_| {
 					format!("(config) the `cp` key must be an unsigned integer\n-- path: {p}")
 				})?,
-				m.contains_id("new"),
+				e.new,
 			)?
 		}
 	};
@@ -162,7 +171,7 @@ fn parse_args() -> Result<Editor, String> {
 }
 
 unsafe fn valid_cp(cp: u32) -> bool {
-	const DUMMY_STR: ConstWinStr = [65, 0].as_ptr() as ConstWinStr;
+	const DUMMY_STR: WinStr = [65, 0].as_ptr();
 	cp == 1200
 		|| 0 != WideCharToMultiByte(
 			cp,
@@ -177,7 +186,7 @@ unsafe fn valid_cp(cp: u32) -> bool {
 }
 
 /// ## Safety
-/// The `out` parameter must be valid to write to.
+/// The `out` parameter must be valid to write.
 #[no_mangle]
 pub unsafe extern "system" fn get_editor_config(out: *mut Editor) {
 	// println!("size: {}, align: {}", std::mem::size_of::<Editor>(),
@@ -189,11 +198,11 @@ pub unsafe extern "system" fn get_editor_config(out: *mut Editor) {
 				"error: the code page identifier {} is not a valid code page",
 				x.cp
 			);
-			std::process::exit(2);
+			process::exit(2);
 		}
 		Err(e) => {
 			eprintln!("error: {e}");
-			std::process::exit(1);
+			process::exit(1);
 		}
 	}
 }
