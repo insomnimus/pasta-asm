@@ -109,21 +109,19 @@ fn to_win(s: &str) -> WinStr {
 fn parse_args() -> Result<Editor, String> {
 	let e = Args::parse();
 
-	let edit = e.config.or_else(|| {
-		let mut p = env::current_exe()
-			.ok()?;
-			if !p.set_extension("ini") || !p.is_file() {
-				None
-			} else {
-				p.into_os_string().into_string().ok()
-			}
+	let config = e.config.or_else(|| {
+		let mut p = env::current_exe().ok()?;
+		if !p.set_extension("ini") || !p.is_file() {
+			None
+		} else {
+			p.into_os_string().into_string().ok()
+		}
 	});
-	let edit = match edit {
+	let edit = match config {
 		None => Editor::new("notepad.exe", "Edit", 1200, e.new)?,
 		Some(p) => {
 			let mut ini = Ini::new();
-			let data =
-				fs::read_to_string(&p).map_err(|e| format!("read {p}: {e}"))?;
+			let data = fs::read_to_string(&p).map_err(|e| format!("read {p}: {e}"))?;
 			ini.read(data)
 				.map_err(|e| format!("(config): {e}\n-- file: {p}"))?;
 			{
