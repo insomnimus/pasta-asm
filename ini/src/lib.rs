@@ -1,12 +1,9 @@
 use std::{
 	collections::HashMap,
 	env,
+	ffi::OsStr,
 	fs,
 	os::windows::ffi::OsStrExt,
-	path::{
-		Path,
-		PathBuf,
-	},
 	process,
 	ptr,
 };
@@ -30,7 +27,7 @@ pub struct Editor {
 struct Args {
 	/// Path to the pasta config file
 	#[arg(short, long)]
-	config: Option<PathBuf>,
+	config: Option<String>,
 	/// A section name from the config file to use
 	#[arg(short, long, default_value = "default")]
 	editor: String,
@@ -40,20 +37,14 @@ struct Args {
 }
 
 impl Editor {
-	fn new(path: &Path, edit: &str, cp: u32, no_reuse: bool) -> Result<Self, String> {
+	fn new(path: &str, edit: &str, cp: u32, no_reuse: bool) -> Result<Self, String> {
 		let basename = path
-			.file_name()
-			.ok_or_else(|| format!("path does not point to a file ({})", path.display()))?
-			.to_str()
-			.ok_or_else(|| {
-				format!(
-					"path does not contain valid unicode data ({})",
-					path.display()
-				)
-			})?
+			.rsplit(|c: char| c == '\\' || c == '/')
+			.next()
+			.ok_or_else(|| format!("path does not point to a file ({path})"))?
 			.to_lowercase();
 
-		let mut path = path.as_os_str().encode_wide().collect::<Vec<_>>();
+		let mut path = OsStr::new(path).encode_wide().collect::<Vec<_>>();
 		path.push(0);
 		let path = Box::into_raw(path.into_boxed_slice()) as WinStr;
 
@@ -118,18 +109,23 @@ fn to_win(s: &str) -> WinStr {
 fn parse_args() -> Result<Editor, String> {
 	let e = Args::parse();
 
-	let edit = match e.config.or_else(|| {
-		env::current_exe()
-			.ok()
-			.and_then(|mut p| (p.set_extension("ini") && p.is_file()).then_some(p))
-	}) {
-		None => Editor::new(Path::new("notepad.exe"), "Edit", 1200, e.new)?,
+	let edit = e.config.or_else(|| {
+		let mut p = env::current_exe()
+			.ok()?;
+			if !p.set_extension("ini") || !p.is_file() {
+				None
+			} else {
+				p.into_os_string().into_string().ok()
+			}
+	});
+	let edit = match edit {
+		None => Editor::new("notepad.exe", "Edit", 1200, e.new)?,
 		Some(p) => {
 			let mut ini = Ini::new();
 			let data =
-				fs::read_to_string(&p).map_err(|e| format!("read {}: {}", p.display(), e))?;
+				fs::read_to_string(&p).map_err(|e| format!("read {p}: {e}"))?;
 			ini.read(data)
-				.map_err(|e| format!("(config): {}\n-- file: {}", e, p.display()))?;
+				.map_err(|e| format!("(config): {e}\n-- file: {p}"))?;
 			{
 				let map = ini.get_mut_map();
 				map.entry("default".into()).or_insert_with(|| {
@@ -141,7 +137,6 @@ fn parse_args() -> Result<Editor, String> {
 				});
 			}
 			let key = e.editor;
-			let p = p.display();
 
 			let map = ini.get_map_ref();
 			let map = map.get(&key).ok_or_else(|| {
@@ -155,7 +150,7 @@ fn parse_args() -> Result<Editor, String> {
 			};
 
 			Editor::new(
-				get("path").map(Path::new)?,
+				get("path")?,
 				get("edit")?,
 				get("cp")?.parse::<u32>().map_err(|_| {
 					format!("(config) the `cp` key must be an unsigned integer\n-- path: {p}")
