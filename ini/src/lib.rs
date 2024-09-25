@@ -23,7 +23,7 @@ pub struct Editor {
 }
 
 #[derive(Parser)]
-#[command(version)]
+#[command(name = "pasta", version)]
 struct Args {
 	/// Path to the pasta config file
 	#[arg(short, long)]
